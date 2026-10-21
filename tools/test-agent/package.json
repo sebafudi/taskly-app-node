@@ -1,0 +1,21 @@
+{
+  "name": "taskly-test-agent-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic tooling shared by the unit test agent's MCP server and the PR workflow steps.",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "bin": {
+    "test-agent": "./src/cli.mjs"
+  },
+  "scripts": {
+    "mcp": "node src/server.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "zod": "4.6.7"
+  }
+}

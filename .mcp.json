@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "taskly-test-agent": {
+      "command": "node",
+      "args": ["tools/test-agent/src/server.mjs"],
+      "env": { "TEST_AGENT_BASE": "origin/main" }
+    }
+  }
+}
