@@ -21,3 +21,6 @@ coverage/
 
 # macOS
 .DS_Store
+
+# gh-aw downloaded run logs
+.github/aw/logs/
