@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatDate, isOverdue, selectTodos, validateTodo } from './todos'
+import {
+  dueLabel,
+  formatDate,
+  isOverdue,
+  selectTodos,
+  validateTodo,
+} from './todos'
 import type { Todo } from '../types'
 
 const base: Todo = {
@@ -162,5 +168,26 @@ describe('formatDate', () => {
   it('formats an ISO date as day, short month and year', () => {
     expect(formatDate('2026-10-05')).toBe('5 Oct 2026')
     expect(formatDate('2026-01-31')).toBe('31 Jan 2026')
+  })
+})
+
+describe('dueLabel', () => {
+  afterEach(() => vi.useRealTimers())
+  const at = (due_date: string | null, completed = false) =>
+    dueLabel({ ...base, due_date, completed })
+
+  it('returns relative wording for dates around today', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-20T00:00:00'))
+    expect(at('2026-10-20')).toBe('due today')
+    expect(at('2026-10-21')).toBe('due tomorrow')
+    expect(at('2026-10-23')).toBe('due in 3 days')
+    expect(at('2026-10-19')).toBe('1 day overdue')
+    expect(at('2026-10-16')).toBe('4 days overdue')
+  })
+
+  it('returns null for completed or undated tasks', () => {
+    expect(at(null)).toBeNull()
+    expect(at('2026-10-19', true)).toBeNull()
   })
 })
