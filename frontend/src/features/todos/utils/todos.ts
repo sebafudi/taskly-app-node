@@ -34,7 +34,11 @@ export function selectTodos(
     .filter((todo) => {
       const statusMatches =
         filter === 'all' ||
-        (filter === 'completed' ? todo.completed : !todo.completed)
+        (filter === 'overdue'
+          ? isOverdue(todo)
+          : filter === 'completed'
+            ? todo.completed
+            : !todo.completed)
       return (
         statusMatches &&
         `${todo.title} ${todo.description}`
@@ -60,6 +64,15 @@ export function isOverdue(todo: Todo): boolean {
   const today = new Date()
   const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   return !todo.completed && !!todo.due_date && todo.due_date < localDate
+}
+
+export function summarizeTodos(todos: Todo[]) {
+  const completed = todos.filter((todo) => todo.completed).length
+  return {
+    active: todos.length - completed,
+    completed,
+    overdue: todos.filter(isOverdue).length,
+  }
 }
 
 export function formatDate(date: string): string {
