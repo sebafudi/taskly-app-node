@@ -108,7 +108,8 @@
                     "active",
                     "completed",
                     "overdue",
-                    "dueToday"
+                    "dueToday",
+                    "dueSoon"
                   ],
                   "properties": {
                     "total": {
@@ -130,6 +131,11 @@
                     "dueToday": {
                       "type": "integer",
                       "minimum": 0
+                    },
+                    "dueSoon": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Active tasks due within the next 7 days, after today."
                     }
                   }
                 }
