@@ -12,9 +12,10 @@ permissions:
   pull-requests: read
 engine:
   id: copilot
-  # Copilot Student plans only serve premium models through Copilot's own "auto" selection.
-  # gh-aw resolves `model: auto` to a concrete id itself, so pass auto straight to the CLI.
-  args: ["--model", "auto"]
+  # Explicit ids rather than the `sonnet` alias, which moves to the newest model.
+  # Requires a Copilot plan with model selection (Pro or above; Student only offers "auto").
+  model: claude-sonnet-5.5
+  fallback-models: [claude-sonnet-5, claude-haiku-5.5]
   agent: unit-test-agent
 skills:
   - .github/skills/pr-test-triage
@@ -100,7 +101,8 @@ safe-outputs:
     report-as-issue: false
     engine:
       id: copilot
-      model: gpt-4.1
+      model: claude-haiku-5.5
+      fallback-models: [gpt-4.1]
     steps:
       - name: Check out the pull request head for verification
         if: needs.agent.outputs.has_patch == 'true'
