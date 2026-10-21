@@ -24,12 +24,13 @@ export function verificationMarkdown(result, { runUrl } = {}) {
   const lines = [REPORT_MARKER, `## ${result.ok ? '✅' : '❌'} Unit test agent: independent verification`, ''];
   lines.push(`Measured by CI on \`${result.head.slice(0, 7)}\` against base \`${result.prBase.slice(0, 7)}\`, without relying on anything the agent reported.`, '');
 
-  lines.push('| Project | Tests | Agent-touched test files | Detect the change¹ | Flaky (3 runs) | Line coverage |');
-  lines.push('| --- | --- | --- | --- | --- | --- |');
+  lines.push('| Project | Tests | Agent-touched test files | Detect the change¹ | Flaky (3 runs) | Types & format | Line coverage |');
+  lines.push('| --- | --- | --- | --- | --- | --- | --- |');
   for (const [name, project] of Object.entries(result.projects)) {
     const tests = project.tests.error ? `⚠️ ${project.tests.error}` : `${project.tests.success ? '✅' : '❌'} ${project.tests.passed}/${project.tests.total} passed`;
     const sensitivity = project.sensitivity ? `${project.sensitivity.detectingChange}/${project.sensitivity.total}` : 'n/a';
-    lines.push(`| ${name} | ${tests} | ${project.agentTests.length} | ${sensitivity} | ${project.flaky.length ? `❌ ${project.flaky.length}` : '✅ none'} | ${project.coverage ? `${project.coverage.lines}%` : 'n/a'} |`);
+    const checks = project.static ? (project.static.typecheck.ok && project.static.format.ok ? '✅' : `❌ ${[!project.static.typecheck.ok && 'types', !project.static.format.ok && 'format'].filter(Boolean).join(', ')}`) : 'n/a';
+    lines.push(`| ${name} | ${tests} | ${project.agentTests.length} | ${sensitivity} | ${project.flaky.length ? `❌ ${project.flaky.length}` : '✅ none'} | ${checks} | ${project.coverage ? `${project.coverage.lines}%` : 'n/a'} |`);
   }
   lines.push('', '¹ Tests in agent-touched files that pass on this PR but fail against the base branch code, so they check the new behaviour rather than only existing code.', '');
 
@@ -55,6 +56,12 @@ export function verificationMarkdown(result, { runUrl } = {}) {
     lines.push('<details><summary>Failing tests</summary>', '');
     for (const failure of failures.slice(0, 10)) lines.push(`**${inline(failure.file)}** › ${inline(failure.name)}`, '', '```', block(failure.failure), '```', '');
     lines.push('</details>', '');
+  }
+  for (const [name, project] of Object.entries(result.projects)) {
+    for (const [check, outcome] of Object.entries(project.static ?? {})) {
+      if (outcome.ok) continue;
+      lines.push(`<details><summary>${name}: ${check === 'typecheck' ? 'type errors' : 'formatting'}</summary>`, '', '```', block(outcome.output), '```', '</details>', '');
+    }
   }
   const flaky = Object.values(result.projects).flatMap((project) => project.flaky);
   if (flaky.length) {

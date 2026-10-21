@@ -96,7 +96,8 @@ safe-outputs:
     if-no-changes: ignore
   add-comment:
     max: 1
-    replace-older-comments: true
+    # Older reports are collapsed rather than replaced, so each run stays visible on the PR.
+    hide-older-comments: true
   threat-detection:
     # Fail closed: a detected threat or a failed verification gate blocks every safe output.
     continue-on-error: false

@@ -20,7 +20,8 @@ Never claim a result you did not get from a tool in this run. The steps below us
    - If none of the tests you wrote for a behaviour change detect it, they probably assert too little. Strengthen the assertions on the new behaviour.
    - Tests for unchanged behaviour (coverage-only tests) are expected to pass on both. That is fine; say so in the report.
 5. **Measure**: `get_coverage` for the changed source files. Aim for every executable changed line covered (`changedLines.uncovered` empty). If some lines stay uncovered on purpose, for example unreachable defensive code, note why.
-6. **Validate**: `validate_my_changes`. Every violation must be fixed. Warnings must be justified in the report or fixed. Files under `ignoredRuntimeChanges` were changed by the workflow runtime, not by you: leave them alone and never stage them (use `git add <your test files>`, never `git add -A`).
+6. **Types and format**: `check_types_and_format` with your test files. Fix type errors in the tests; for formatting, match the project's Prettier style (frontend: no semicolons, single quotes, trailing commas, about 80 columns).
+7. **Validate**: `validate_my_changes`. Every violation must be fixed, including removing assertions or test cases from an existing file (extend or rewrite cases instead). Warnings must be justified in the report or fixed. Files under `ignoredRuntimeChanges` were changed by the workflow runtime, not by you: leave them alone and never stage them (use `git add <your test files>`, never `git add -A`).
 
 ## Flakiness checklist
 

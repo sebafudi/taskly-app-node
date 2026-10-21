@@ -32,6 +32,7 @@ Use the `taskly-test-agent` MCP tools for analysis and test runs. In CI the shel
 | `run_tests` | Run specific test files or a whole project |
 | `get_coverage` | Measure line, branch and changed-line coverage for source files |
 | `check_tests_against_base` | Prove a test detects the change (passes now, fails on the base code) |
+| `check_types_and_format` | Typecheck the project and Prettier-check your test files, as CI does |
 | `validate_my_changes` | Check your edits against the write policy before you finish |
 
 ## Skills

@@ -11,6 +11,7 @@ import { addedLines, changedFiles, diffText, repoRoot, resolveRange, workingTree
 import { checkChanges } from './lib/guard.mjs';
 import { findRelatedTests } from './lib/mapping.mjs';
 import { PROJECTS, classify, matches } from './lib/policy.mjs';
+import { staticChecks } from './lib/verify.mjs';
 import { changedLineCoverage, runVitest, uncoveredLines } from './lib/vitest.mjs';
 
 const root = repoRoot(process.env.GITHUB_WORKSPACE || process.cwd());
@@ -119,6 +120,16 @@ tool(
 );
 
 tool(
+  'check_types_and_format',
+  'Typecheck the project (tests included) and run Prettier --check on the given test files where the project uses Prettier. CI rejects agent changes that fail either.',
+  { project, files: z.array(repoPath).min(1).max(30) },
+  ({ project: name, files }) => {
+    assertTestFiles(name, files);
+    return staticChecks(root, name, files);
+  },
+);
+
+tool(
   'validate_my_changes',
   'Check everything changed since the agent started against the write policy (only test files and fixtures), and for focused/skipped tests, missing assertions, network or process access, and weakened tests. Run before finishing; violations will block the push.',
   {},
@@ -131,7 +142,7 @@ tool(
     const uncommitted = workingTreeChanges({ cwd: root });
     const ignored = uncommitted.filter((change) => isRuntimeManaged(change.path) && !committed.some((other) => other.path === change.path));
     const changes = [...committed, ...uncommitted.filter((change) => !ignored.includes(change))];
-    const result = checkChanges({ root, changes: [...new Map(changes.map((change) => [change.path, change])).values()] });
+    const result = checkChanges({ root, changes: [...new Map(changes.map((change) => [change.path, change])).values()], baseRef: start });
     return { ...result, ignoredRuntimeChanges: ignored.map((change) => change.path) };
   },
 );

@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
-import { checkChanges, pathsFromPatch } from '../src/lib/guard.mjs';
+import { checkChanges, countTestCases, pathsFromPatch } from '../src/lib/guard.mjs';
 import { findRelatedTests, importedModules, suggestTestPath } from '../src/lib/mapping.mjs';
 import { classify, globToRegExp, isWritable } from '../src/lib/policy.mjs';
 import { changedLineCoverage, toRanges } from '../src/lib/vitest.mjs';
@@ -120,12 +120,26 @@ describe('guard', () => {
     );
   });
 
-  it('warns when an update removes assertions', () => {
-    const root = repo({ 'frontend/src/a.test.ts': "it('x', () => { expect(1).toBe(1); expect(2).toBe(2) })" });
-    writeFileSync(join(root, 'frontend/src/a.test.ts'), "it('x', () => { expect(1).toBe(1) })");
+  it('blocks updates that remove assertions or test cases', () => {
+    const root = repo({ 'frontend/src/a.test.ts': "it('x', () => { expect(1).toBe(1); expect(2).toBe(2) })\nit('y', () => { expect(3).toBe(3) })" });
+    writeFileSync(join(root, 'frontend/src/a.test.ts'), "it('x', () => { expect(1).toBe(1); expect(4).toBe(4) })");
     const result = checkChanges({ root, changes: [{ path: 'frontend/src/a.test.ts', status: 'modified' }] });
-    assert.equal(result.ok, true);
-    assert.deepEqual(result.warnings.map((item) => item.code), ['assertions-removed']);
+    assert.equal(result.ok, false);
+    assert.deepEqual(result.violations.map((item) => item.code), ['assertions-removed', 'tests-removed']);
+  });
+
+  it('compares against the revision the agent started from', () => {
+    const root = repo({ 'frontend/src/a.test.ts': "it('x', () => { expect(1).toBe(1) })\nit('y', () => { expect(2).toBe(2) })" });
+    const start = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+    writeFileSync(join(root, 'frontend/src/a.test.ts'), "it('x', () => { expect(1).toBe(1) })");
+    execFileSync('git', ['-c', 'user.email=t@t', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', 'commit', '-qam', 'agent'], { cwd: root });
+    const changes = [{ path: 'frontend/src/a.test.ts', status: 'modified' }];
+    assert.equal(checkChanges({ root, changes }).ok, true, 'HEAD already contains the weakened file');
+    assert.equal(checkChanges({ root, changes, baseRef: start }).ok, false);
+  });
+
+  it('counts plain and table-driven test cases', () => {
+    assert.equal(countTestCases("it('a', f)\ntest(\"b\", f)\nit.each([1, 2])('c %s', f)\ndescribe('d', f)"), 3);
   });
 
   it('reads paths and statuses from a unified diff', () => {
