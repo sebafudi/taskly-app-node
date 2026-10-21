@@ -101,8 +101,7 @@ safe-outputs:
     report-as-issue: false
     engine:
       id: copilot
-      model: claude-haiku-5.5
-      fallback-models: [gpt-5.6-luna-utility, claude-sonnet-5]
+      model: gpt-4.1
     steps:
       - name: Check out the pull request head for verification
         if: needs.agent.outputs.has_patch == 'true'
