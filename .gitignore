@@ -6,7 +6,7 @@ dist/
 storybook-static/
 .vite/
 *.tsbuildinfo
-backend/src/generated/prisma/
+backend/src/generated/prisma
 
 # Test coverage
 coverage/
