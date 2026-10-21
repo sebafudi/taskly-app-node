@@ -72,9 +72,12 @@ pre-agent-steps:
       node "$RUNNER_TEMP/trusted/tools/test-agent/src/cli.mjs" analyze --base "$BASE_SHA" --coverage \
         --out /tmp/gh-aw/agent/analysis.json --markdown /tmp/gh-aw/agent/analysis.md
       cat /tmp/gh-aw/agent/analysis.md >> "$GITHUB_STEP_SUMMARY"
-      # Nothing testable changed: end the run before any model call.
+      # Nothing testable changed: end the run before any model call. gh-aw does not export
+      # GH_AW_SAFE_OUTPUTS to custom steps, so fall back to the path its runtime uses.
       if [ "$(jq '.summary.actionable' /tmp/gh-aw/agent/analysis.json)" = "0" ]; then
-        echo '{"type":"noop","message":"No testable source changes in this pull request."}' >> "$GH_AW_SAFE_OUTPUTS"
+        outputs="${GH_AW_SAFE_OUTPUTS:-$RUNNER_TEMP/gh-aw/safeoutputs/outputs.jsonl}"
+        mkdir -p "$(dirname "$outputs")"
+        echo '{"type":"noop","message":"No testable source changes in this pull request."}' >> "$outputs"
       fi
 safe-outputs:
   push-to-pull-request-branch:
@@ -91,6 +94,7 @@ safe-outputs:
   threat-detection:
     # Fail closed: a detected threat or a failed verification gate blocks every safe output.
     continue-on-error: false
+    report-as-issue: false
     steps:
       - name: Check out the pull request head for verification
         if: needs.agent.outputs.has_patch == 'true'
