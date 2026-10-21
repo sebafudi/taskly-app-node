@@ -1,5 +1,7 @@
 # Taskly App Node
 
+> **Unit test agent.** Pull requests that change `backend/` or `frontend/` are picked up by an AI agent. It writes or updates unit tests for the changed code, verifies them, and reports on the PR. See [SOLUTION.md](SOLUTION.md) for how it works, how to run it, and example runs.
+
 ## Setup
 
 ```sh
