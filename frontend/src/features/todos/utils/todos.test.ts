@@ -192,7 +192,13 @@ describe('overdue filter and summary', () => {
       active: 3,
       completed: 1,
       overdue: 1,
+      dueToday: 1,
     })
-    expect(summarizeTodos([])).toEqual({ active: 0, completed: 0, overdue: 0 })
+    expect(summarizeTodos([])).toEqual({
+      active: 0,
+      completed: 0,
+      overdue: 0,
+      dueToday: 0,
+    })
   })
 })
