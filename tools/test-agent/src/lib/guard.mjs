@@ -17,7 +17,7 @@ const CONTENT_RULES = [
 ];
 
 // Checks the agent's working tree changes against the write policy and the content rules.
-export function checkChanges({ root, changes = workingTreeChanges({ cwd: root }) }) {
+export function checkChanges({ root, changes = workingTreeChanges({ cwd: root }), baseRef = 'HEAD' }) {
   const violations = [];
   const warnings = [];
   for (const change of changes) {
@@ -46,9 +46,13 @@ export function checkChanges({ root, changes = workingTreeChanges({ cwd: root })
     if (/\.test\.tsx?$/.test(path)) {
       const assertions = countAssertions(content);
       if (assertions === 0) violations.push({ path, code: 'no-assertions', message: 'Test file contains no expect() assertions.' });
-      const previous = showFile({ ref: 'HEAD', path, cwd: root });
+      // Updates may add or rewrite cases but never leave a test file weaker than it was.
+      const previous = showFile({ ref: baseRef, path, cwd: root });
       if (previous !== null && countAssertions(previous) > assertions) {
-        warnings.push({ path, code: 'assertions-removed', message: `Assertions dropped from ${countAssertions(previous)} to ${assertions}; check the update did not weaken the test.` });
+        violations.push({ path, code: 'assertions-removed', message: `Assertions dropped from ${countAssertions(previous)} to ${assertions}; tests must not be weakened.` });
+      }
+      if (previous !== null && countTestCases(previous) > countTestCases(content)) {
+        violations.push({ path, code: 'tests-removed', message: `Test cases dropped from ${countTestCases(previous)} to ${countTestCases(content)}; removing tests is a human decision.` });
       }
     }
   }
@@ -57,6 +61,10 @@ export function checkChanges({ root, changes = workingTreeChanges({ cwd: root })
 
 export function countAssertions(content) {
   return (content.match(/\bexpect(?:\.soft)?\s*\(/g) ?? []).length;
+}
+
+export function countTestCases(content) {
+  return (content.match(/\b(?:it|test)(?:\.each\([\s\S]*?\))?\s*\(\s*['"`]/g) ?? []).length;
 }
 
 // Paths touched by a unified diff, for validating a patch before it is applied anywhere.

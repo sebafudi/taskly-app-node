@@ -19,7 +19,7 @@ after(() => client.close());
 it('exposes the agent tool set', async () => {
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map((tool) => tool.name).sort(), [
-    'analyze_pr_changes', 'check_tests_against_base', 'find_related_tests', 'get_coverage', 'get_file_diff', 'run_tests', 'validate_my_changes',
+    'analyze_pr_changes', 'check_tests_against_base', 'check_types_and_format', 'find_related_tests', 'get_coverage', 'get_file_diff', 'run_tests', 'validate_my_changes',
   ]);
 });
 
