@@ -32,3 +32,29 @@ it.each([{ title: '  ' }, { title: 'x'.repeat(121) }, { title: 'Task', priority:
     expect(repository.create).not.toHaveBeenCalled();
   },
 );
+it('summarizes tasks for the given date', async () => {
+  const { app, repository } = setup();
+  repository.list.mockResolvedValue([{ ...todo, due_date: '2026-10-20' }, { ...todo, id: 2, completed: true }]);
+  const response = await request(app).get('/api/todos/stats').query({ today: '2026-10-20' });
+  expect(response.status).toBe(200);
+  expect(response.body).toEqual({ total: 2, active: 1, completed: 1, overdue: 0, dueToday: 1 });
+  expect(repository.list).toHaveBeenCalledOnce();
+});
+it('defaults the stats date to the current day', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-16T10:00:00Z'));
+  try {
+    const { app } = setup();
+    const response = await request(app).get('/api/todos/stats');
+    expect(response.body).toEqual({ total: 1, active: 1, completed: 0, overdue: 1, dueToday: 0 });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+it.each(['tomorrow', '2026-1-5', ''])('rejects an invalid stats date without calling the repository: %j', async (today) => {
+  const { app, repository } = setup();
+  const response = await request(app).get('/api/todos/stats').query({ today });
+  expect(response.status).toBe(422);
+  expect(response.body).toHaveProperty('detail');
+  expect(repository.list).not.toHaveBeenCalled();
+});

@@ -28,3 +28,20 @@ it('displays controlled values and forwards all filter changes', async () => {
   expect(screen.getByLabelText('Status')).toHaveValue('completed')
   expect(screen.getByLabelText('Sort by')).toHaveValue('due')
 })
+
+it('offers an overdue status option', async () => {
+  const user = userEvent.setup()
+  const onFilterChange = vi.fn()
+  render(
+    <TodoFilters
+      filter="all"
+      search=""
+      sort="newest"
+      onFilterChange={onFilterChange}
+      onSearchChange={vi.fn()}
+      onSortChange={vi.fn()}
+    />,
+  )
+  await user.selectOptions(screen.getByLabelText('Status'), 'overdue')
+  expect(onFilterChange).toHaveBeenCalledWith('overdue')
+})
