@@ -135,6 +135,10 @@ safe-outputs:
           path: ${{ runner.temp }}/verification/
           if-no-files-found: ignore
 max-turns: 60
+# Runs that never reach a model have no usage data and are counted at the per-run cap,
+# so keep the cap realistic and the daily guard above a busy day of pushes.
+max-ai-credits: 300
+max-daily-ai-credits: 20K
 timeout-minutes: 30
 concurrency:
   group: unit-test-agent-${{ github.event.pull_request.number }}
