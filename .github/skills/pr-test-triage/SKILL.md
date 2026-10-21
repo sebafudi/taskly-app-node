@@ -31,6 +31,10 @@ Goal: a short, justified decision per changed file. You will report this table a
 
 4. Prioritise by risk: business logic, validation, error handling, and data mapping first; thin glue code last. At most 12 files are actionable per run. If more are left, list them as follow-ups.
 
+## Know the intended behaviour first
+
+Before writing tests, write down in one or two sentences what each change is supposed to do. Use the PR description in the prompt and the code. Tests check the code against that intent, not against whatever the code happens to do. Where the description states rules (formats, boundaries, "only on the calendar date", error cases), each rule gets at least one test.
+
 ## What a "testable change" is
 
 Worth testing: new branches, conditions, validation rules, error paths, state transitions, API request shapes, query cache updates, user-visible rendering that depends on props or state.

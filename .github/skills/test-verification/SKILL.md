@@ -12,7 +12,8 @@ Never claim a result you did not get from a tool in this run. The steps below us
 1. **Run it**: `run_tests` with `project` and `files: [<your test file>]`.
 2. **Failure?** Read the message and decide which case it is:
    - The test is wrong (bad query, wrong mock shape, missing `await`, wrong import path): fix the **test**.
-   - The application behaves differently from what the PR intends: this is a suspected bug. Remove that case from your patch and record it for the report (file, test name, expected vs actual). Never edit application code.
+   - The application behaves differently from what the PR intends: this is a suspected bug. Remove that case from your patch and record it for the report (file, test name, input, expected vs actual). Never edit application code.
+   - **Never route around a failure.** If you notice the code misbehaves under some condition (another time of day, a boundary value, an empty list), do not pick fixtures that avoid it. Write the test for that condition. When it fails against the stated intent, it is a suspected bug. "Ambiguous" is only acceptable when the PR description and the code are both silent on the case.
    - Give up on a case after 3 failed fix attempts and record why.
 3. **Run the whole project** once with `run_tests` (no `files`) to make sure nothing else broke, for example shared fixtures.
 4. **Prove it tests the change**: `check_tests_against_base` with your test files.
@@ -22,6 +23,14 @@ Never claim a result you did not get from a tool in this run. The steps below us
 5. **Measure**: `get_coverage` for the changed source files. Aim for every executable changed line covered (`changedLines.uncovered` empty). If some lines stay uncovered on purpose, for example unreachable defensive code, note why.
 6. **Types and format**: `check_types_and_format` with your test files. Fix type errors in the tests; for formatting, match the project's Prettier style (frontend: no semicolons, single quotes, trailing commas, about 80 columns).
 7. **Validate**: `validate_my_changes`. Every violation must be fixed, including removing assertions or test cases from an existing file (extend or rewrite cases instead). Warnings must be justified in the report or fixed. Files under `ignoredRuntimeChanges` were changed by the workflow runtime, not by you: leave them alone and never stage them (use `git add <your test files>`, never `git add -A`).
+
+## Edge conditions to probe
+
+Pick the ones relevant to the change:
+- Dates and times: start, middle and end of the day; month and year boundaries; time zone sensitive formatting.
+- Numbers and strings: 0, 1, many, limits from validators, empty and whitespace-only input.
+- Collections: empty, one item, duplicates, ordering ties.
+- Errors: rejected promises, 4xx/5xx responses, missing records.
 
 ## Flakiness checklist
 

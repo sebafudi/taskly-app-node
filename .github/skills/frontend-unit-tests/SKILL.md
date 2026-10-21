@@ -57,7 +57,7 @@ Seed the cache with `client.setQueryData(todoKeys.list, [...])`, then assert the
 ## Timers and dates
 
 - `useNotice` clears after 4 s: `vi.useFakeTimers()`, `act(() => vi.advanceTimersByTime(4000))`, and `vi.useRealTimers()` in `afterEach`. Do not combine fake timers with `userEvent` unless you use `userEvent.setup({ advanceTimers: vi.advanceTimersByTime })`.
-- Date-dependent logic (`isOverdue`): `vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-20T10:00:00'))`.
+- Date-dependent logic (`isOverdue`, relative labels): `vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-20T10:00:00'))`. Use a mid-day time by default, and add early-morning and late-evening cases when the behaviour should only depend on the calendar date.
 
 ## Out of scope
 
