@@ -19,6 +19,7 @@ jobs:
     timeout-minutes: 5
     permissions:
       actions: read
+      contents: read
       pull-requests: write
     steps:
       - name: Check out trusted report tooling

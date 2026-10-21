@@ -18,6 +18,8 @@ const root = repoRoot(process.env.GITHUB_WORKSPACE || process.cwd());
 const base = process.env.TEST_AGENT_BASE;
 const agentStart = process.env.TEST_AGENT_HEAD || 'HEAD';
 const project = z.enum(Object.keys(PROJECTS));
+const RUNTIME_MANAGED = ['.github/', '.claude/', '.agents/', '.mcp.json', 'AGENTS.md'];
+const isRuntimeManaged = (path) => RUNTIME_MANAGED.some((prefix) => (prefix.endsWith('/') ? path.startsWith(prefix) : path === prefix));
 const repoPath = z.string().regex(/^(?!\/)(?!.*\.\.)[\w./@-]+$/, 'Repository-relative path without ..');
 
 const server = new McpServer({ name: 'taskly-test-agent', version: '1.0.0' });
@@ -122,8 +124,15 @@ tool(
   {},
   () => {
     const start = resolveRange({ base: agentStart, head: 'HEAD', cwd: root }).baseSha;
-    const changes = [...changedFiles({ baseSha: start, headSha: 'HEAD', cwd: root }), ...workingTreeChanges({ cwd: root })];
-    return checkChanges({ root, changes: [...new Map(changes.map((change) => [change.path, change])).values()] });
+    const committed = changedFiles({ baseSha: start, headSha: 'HEAD', cwd: root });
+    // The workflow runtime rewrites some files before the agent starts (it restores .github/ from
+    // the base branch and removes engine config). Uncommitted changes there are not the agent's;
+    // committing them would still be a violation.
+    const uncommitted = workingTreeChanges({ cwd: root });
+    const ignored = uncommitted.filter((change) => isRuntimeManaged(change.path) && !committed.some((other) => other.path === change.path));
+    const changes = [...committed, ...uncommitted.filter((change) => !ignored.includes(change))];
+    const result = checkChanges({ root, changes: [...new Map(changes.map((change) => [change.path, change])).values()] });
+    return { ...result, ignoredRuntimeChanges: ignored.map((change) => change.path) };
   },
 );
 

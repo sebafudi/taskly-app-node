@@ -85,7 +85,9 @@ pre-agent-steps:
       fi
 safe-outputs:
   push-to-pull-request-branch:
+    # gh-aw's "**/" needs at least one directory, so top-level test files are listed separately.
     allowed-files:
+      - "backend/tests/*.test.ts"
       - "backend/tests/**/*.test.ts"
       - "backend/tests/fixture.ts"
       - "frontend/src/**/*.test.ts"
@@ -156,9 +158,9 @@ A deterministic pre-analysis of the change set is in `/tmp/gh-aw/agent/analysis.
 
 1. Triage with `pr-test-triage`.
 2. Write tests with `backend-unit-tests` and `frontend-unit-tests`.
-3. Verify with `test-verification`.
+3. Verify with `test-verification`. All of its steps are required, including `check_tests_against_base` for tests of changed behaviour and `get_coverage` for the changed files; the report must quote their results.
 4. Commit your test changes and push them with `push_to_pull_request_branch`, but only if you changed files and `validate_my_changes` passes.
-5. Post one comment with `pr-test-report`.
+5. Post one comment that follows the `pr-test-report` template exactly.
 
 If nothing needs tests, skip the push and post a short comment with the decisions table.
 
