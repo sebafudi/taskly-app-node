@@ -31,7 +31,8 @@ mcp-servers:
   # Test runs happen here: a pinned Node container with no network, so agent-written tests
   # cannot reach the internet. The server code is the base branch's copy, mounted read-only.
   taskly-test-agent:
-    container: "node:22-bookworm@sha256:69a5713e7f4997e96d579aafd78734810e0dac0dd5ee4621d72c27a2891a4088"
+    # The MCP gateway accepts name:tag only, so this is the exact tag of the digest the gate pins.
+    container: "node:22.23.3-bookworm"
     args: ["--network=none", "-w", "${{ github.workspace }}"]
     mounts:
       - "${{ github.workspace }}:${{ github.workspace }}:rw"
@@ -113,7 +114,7 @@ safe-outputs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          NODE_IMAGE: "node:22-bookworm@sha256:69a5713e7f4997e96d579aafd78734810e0dac0dd5ee4621d72c27a2891a4088"
+          NODE_IMAGE: "node:22.23.3-bookworm@sha256:69a5713e7f4997e96d579aafd78734810e0dac0dd5ee4621d72c27a2891a4088"
         run: |
           export GATE_DIR="$GITHUB_WORKSPACE/gate" OUT_DIR="$RUNNER_TEMP/verification" TRUSTED_DIR="$RUNNER_TEMP/trusted/tools/test-agent"
           mkdir -p "$RUNNER_TEMP/trusted"
