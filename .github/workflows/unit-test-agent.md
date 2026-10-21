@@ -101,7 +101,7 @@ safe-outputs:
     report-as-issue: false
     engine:
       id: copilot
-      model: gpt-4.1
+      model: auto
     steps:
       - name: Check out the pull request head for verification
         if: needs.agent.outputs.has_patch == 'true'
