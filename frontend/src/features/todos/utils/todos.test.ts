@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { formatDate, isOverdue, selectTodos, validateTodo } from './todos'
+import {
+  formatDate,
+  isOverdue,
+  selectTodos,
+  summarizeTodos,
+  validateTodo,
+} from './todos'
 import type { Todo } from '../types'
 
 const base: Todo = {
@@ -162,5 +168,37 @@ describe('formatDate', () => {
   it('formats an ISO date as day, short month and year', () => {
     expect(formatDate('2026-10-05')).toBe('5 Oct 2026')
     expect(formatDate('2026-01-31')).toBe('31 Jan 2026')
+  })
+})
+
+describe('overdue filter and summary', () => {
+  afterEach(() => vi.useRealTimers())
+
+  const late = { ...base, id: 2, due_date: '2026-10-19' }
+  const today = { ...base, id: 3, due_date: '2026-10-20' }
+  const doneLate = { ...base, id: 4, due_date: '2026-10-01', completed: true }
+  const todos = [base, late, today, doneLate]
+
+  it('keeps only active tasks due before today for the overdue filter', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-20T10:00:00'))
+    expect(selectTodos(todos, 'overdue', '', 'newest')).toEqual([late])
+  })
+
+  it('counts active, completed and overdue tasks', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-20T10:00:00'))
+    expect(summarizeTodos(todos)).toEqual({
+      active: 3,
+      completed: 1,
+      overdue: 1,
+      dueToday: 1,
+    })
+    expect(summarizeTodos([])).toEqual({
+      active: 0,
+      completed: 0,
+      overdue: 0,
+      dueToday: 0,
+    })
   })
 })

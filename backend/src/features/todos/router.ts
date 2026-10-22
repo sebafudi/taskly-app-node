@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { TodoStore } from './types.js';
 import { createSchema, updateSchema, idSchema } from './validators.js';
+import { summarize } from './stats.js';
 
 export function createTodosRouter(repository: TodoStore) {
   const router = Router();
@@ -11,6 +12,11 @@ export function createTodosRouter(repository: TodoStore) {
     next();
   });
   router.get('/', async (req, res) => res.json(await repository.list()));
+  router.get('/stats', async (req, res) => {
+    const today = typeof req.query.today === 'string' ? req.query.today : new Date().toISOString().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) return res.status(422).json({ detail: 'today must be a YYYY-MM-DD date.' });
+    res.json(summarize(await repository.list(), today));
+  });
   router.post('/', async (req, res) => {
     const result = createSchema.safeParse(req.body);
     if (!result.success) return res.status(422).json({ detail: result.error.issues });

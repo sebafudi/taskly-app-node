@@ -35,6 +35,11 @@ vi.mock('./components/TodosHeader', () => ({
   ),
 }))
 vi.mock('./components/TodoFilters', () => ({ TodoFilters: () => null }))
+vi.mock('./components/TodoSummary', () => ({
+  TodoSummary: ({ todos }: { todos: unknown[] }) => (
+    <p>Summary of {todos.length}</p>
+  ),
+}))
 vi.mock('./components/TodoList', () => ({
   TodoList: ({
     todos,
@@ -169,6 +174,39 @@ it('displays a query failure and resets mutation errors before retrying', async 
   expect(reset.mock.invocationCallOrder[0]).toBeLessThan(
     refetch.mock.invocationCallOrder[0],
   )
+})
+
+it.each([
+  [[], false],
+  [[todoFixture], true],
+])('shows the task summary only when tasks exist', (data, shown) => {
+  vi.mocked(useTodosQuery).mockReturnValue({
+    data,
+    isPending: false,
+    isFetching: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useTodosQuery>)
+  vi.mocked(useUpdateTodoMutation).mockReturnValue({
+    error: null,
+    reset: vi.fn(),
+    mutateAsync: vi.fn(),
+  } as unknown as ReturnType<typeof useUpdateTodoMutation>)
+  vi.mocked(useTodosBusy).mockReturnValue(false)
+  vi.mocked(useNotice).mockReturnValue({ message: '', notify: vi.fn() })
+  vi.mocked(useTodoFilters).mockReturnValue({
+    filter: 'all',
+    search: '',
+    sort: 'newest',
+    visible: data,
+    setFilter: vi.fn(),
+    setSearch: vi.fn(),
+    setSort: vi.fn(),
+  })
+  render(<TodosPage />)
+  if (shown) expect(screen.getByText('Summary of 1')).toBeInTheDocument()
+  else expect(screen.queryByText(/Summary of/)).not.toBeInTheDocument()
 })
 
 it('completes a task and celebrates it', async () => {

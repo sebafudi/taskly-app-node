@@ -78,6 +78,76 @@
         }
       }
     },
+    "/api/todos/stats": {
+      "get": {
+        "summary": "Task statistics",
+        "tags": [
+          "todos"
+        ],
+        "parameters": [
+          {
+            "name": "today",
+            "in": "query",
+            "required": false,
+            "description": "Calendar date used to decide overdue and due-today tasks. Defaults to the server's UTC date.",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts of tasks by state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "total",
+                    "active",
+                    "completed",
+                    "overdue",
+                    "dueToday",
+                    "dueSoon"
+                  ],
+                  "properties": {
+                    "total": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "active": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "completed": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "overdue": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "dueToday": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "dueSoon": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Active tasks due within the next 7 days, after today."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid date."
+          }
+        }
+      }
+    },
     "/api/todos/{id}": {
       "parameters": [
         {

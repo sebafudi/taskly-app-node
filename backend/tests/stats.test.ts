@@ -1,0 +1,29 @@
+import { it, expect } from 'vitest';
+import { summarize } from '../src/features/todos/stats.ts';
+import { todo } from './fixture.ts';
+
+it('counts active, completed, overdue and due-today tasks', () => {
+  const todos = [
+    { ...todo, id: 1, due_date: '2026-10-19' },
+    { ...todo, id: 2, due_date: '2026-10-20' },
+    { ...todo, id: 3, due_date: '2026-10-21' },
+    { ...todo, id: 4, due_date: null },
+    { ...todo, id: 5, due_date: '2026-10-01', completed: true },
+  ];
+  expect(summarize(todos, '2026-10-20')).toEqual({ total: 5, active: 4, completed: 1, overdue: 1, dueToday: 1, dueSoon: 1 });
+});
+it('returns zeros for an empty list', () => {
+  expect(summarize([], '2026-10-20')).toEqual({ total: 0, active: 0, completed: 0, overdue: 0, dueToday: 0, dueSoon: 0 });
+});
+it('counts only active tasks due within the next 7 days as due soon', () => {
+  const todos = [
+    { ...todo, id: 1, due_date: '2026-10-27' },
+    { ...todo, id: 2, due_date: '2026-10-28' },
+    { ...todo, id: 3, due_date: '2026-10-25', completed: true },
+  ];
+  expect(summarize(todos, '2026-10-20')).toMatchObject({ dueSoon: 1, dueToday: 0, overdue: 0 });
+});
+it('computes the horizon across month and year boundaries', () => {
+  const todos = [{ ...todo, id: 1, due_date: '2027-01-03' }, { ...todo, id: 2, due_date: '2027-01-04' }];
+  expect(summarize(todos, '2026-12-27')).toMatchObject({ dueSoon: 1 });
+});
