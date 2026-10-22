@@ -2,6 +2,12 @@
 
 A custom agent with reusable skills that writes and updates unit tests for the Taskly frontend and backend, plus a GitHub pull request workflow that runs it automatically, verifies its work independently, and reports on the pull request.
 
+**Results**
+- Coverage of the existing code: backend 33% → 97% lines, frontend 48% → 100%, written by agents from this repo's skills.
+- Four real runs on GitHub: skip with no model call, create tests, update stale tests, and a deliberate bug reported instead of hidden.
+- 11 of the 14 tests written for a new feature fail on the code before the PR, so they check the change itself, not just run it.
+- A run costs $0.20 to $0.42; PRs with nothing to test cost nothing.
+
 ## At a glance
 
 The model proposes, deterministic code decides. One pull request passes through three trust zones:
@@ -58,33 +64,6 @@ flowchart TD
 | `.github/workflows/ci.yml` | Plain CI: typecheck, tests with coverage, tooling tests |
 | `.claude/`, `.mcp.json` | The same agent, skills and MCP server wired for local use in Claude Code |
 
-```mermaid
-flowchart LR
-    subgraph KNOW["Knowledge · Markdown"]
-        AG[unit-test-agent.agent.md]
-        SK[5 skills]
-    end
-    subgraph TOOLS["Tools · Node, no model"]
-        LIB[(src/lib<br/>policy · git · mapping · vitest<br/>analyze · guard · baseline · verify · report)]
-        SRV[server.mjs<br/>MCP tools]
-        CLI[cli.mjs<br/>analyze · verify · report]
-        SRV --> LIB
-        CLI --> LIB
-    end
-    subgraph ORCH["Orchestration · GitHub"]
-        WF[unit-test-agent.md<br/>gh-aw workflow]
-        GATE[gate.sh]
-        REP[unit-test-agent-report.yml]
-        CI[ci.yml]
-    end
-    WF --> AG & SK & SRV
-    GATE --> CLI
-    REP --> CLI
-    CI -->|npm test| LIB
-```
-
-The agent, the gate and the report all call the same library, so the agent sees exactly the numbers CI checks later.
-
 ### Inside one agent run
 
 ```mermaid
@@ -122,6 +101,7 @@ sequenceDiagram
 - The verification gate rebuilds the result from a fresh checkout plus the agent's git bundle and re-runs everything.
 - It runs in gh-aw's detection job with `continue-on-error: false`, so a failure blocks the push and the comment.
 - The PR comment with numbers comes from the gate's JSON, rendered by trusted code on the default branch, not from the model.
+- A test that fails against the PR's stated intent is reported as a suspected bug. The agent never edits application code or bends a test to make it pass.
 
 ```mermaid
 flowchart LR
@@ -164,12 +144,6 @@ flowchart LR
 | Supply chain | Actions pinned by SHA; Node image pinned by digest in the gate (the MCP gateway only accepts a tag, so it uses the exact matching tag) |
 | Fork PRs | gh-aw blocks fork PRs by default; only users with write access trigger the agent |
 | Runaway cost | Pre-analysis skips the model when nothing testable changed; turn, per-run and daily AI credit caps; at most 12 target files per run; concurrency cancels superseded runs |
-
-**Reliability**
-- Each agent-written test file is run three times in the gate. Any inconsistent result fails it.
-- The agent's push does not re-trigger CI, so the gate applies CI's own checks to its tests: the project typecheck and Prettier.
-- The Vitest cache is disabled because the container writes as a different user.
-- A test that fails because the application is wrong is reported as a suspected bug rather than "fixed" by editing code.
 
 ## Running the PR workflow
 
@@ -297,23 +271,14 @@ The safety layers worked in each case. The refused push left the agent's tests u
 - **Fork PRs are not supported.** gh-aw blocks them by default, and pushing to fork branches is not supported.
 - **Base-branch sensitivity is approximate.** The worktree reuses the PR's `node_modules` and generated Prisma client, so a PR that changes dependencies or the Prisma schema can skew it.
 - **The gate runs agent-written tests inside its own container, which also writes the report file.** A deliberately malicious test could in theory tamper with that file. The path policy is enforced outside test execution, by gh-aw's `allowed-files`.
-- **Model access depends on the Copilot plan.** Copilot Student only offers automatic model selection, which gh-aw's harness rewrites to a fixed model.
-- **gh-aw quirks found along the way and worked around:**
-  - Custom steps don't receive `GH_AW_SAFE_OUTPUTS`.
-  - `allowed-files` treats `**/` as "at least one directory".
-  - The MCP gateway rejects digest-pinned images.
-  - Runs without usage data are counted at the per-run AI credit cap.
 - **Pushes made with `GITHUB_TOKEN` don't trigger other workflows,** so plain CI does not re-run on the agent's commit. The gate covers that verification.
 - **On later runs the agent can mistake its own earlier tests for the author's.** Both kinds are simply "tests changed in this PR".
 - **The verification comment shows the last run that produced a patch.** When a run pushes nothing, the agent's comment explains why.
 
 ## What I would change for production
 
-- **A GitHub App token** for the push, so CI re-runs on agent commits, and for clearer bot identity.
-- **Mutation testing** (Stryker) on changed files as a stronger "useful test" signal than base-branch sensitivity.
-- **An evaluation set:** recorded PRs with expected decisions, run on every change to the agent or skills, tracking pass rate, change detection, flakiness and cost per run.
-- **Caching** of the Node image and `node_modules` across the three jobs. A run currently installs dependencies twice.
-- **A check run** with annotations instead of a comment, and required status on protected branches.
-- **Keyless model access:** Anthropic workload identity federation (or org-billed Copilot requests) instead of a personal token.
-- **Org-level controls:** `copilot-requests: write` billing instead of a personal PAT, and shared skills imported from a central repo, pinned by SHA.
-- **Running the test container as the runner's UID**, instead of handing ownership back with `chown`.
+- **An evaluation set:** recorded PRs with expected decisions (new feature, refactor, deliberate bug, tests only, prompt injection), run on every change to the agent, a skill or the model, tracking decisions, tests that fail on base, flakiness and cost.
+- **A GitHub App token and a check run:** CI re-runs on the agent's commits, and results appear as annotations and a required status instead of a comment.
+- **Mutation testing on changed lines only** (Stryker with `--mutate` and `--incremental`), given to the agent as a tool so surviving mutants become concrete targets. Reported, not blocking.
+- **Declared test edits:** hash each existing test before and after the run, so any test the agent changes must be named in its report. Today only the number of assertions and tests is protected.
+- **Caching and org-level access:** reuse the Node image and `node_modules` across jobs, use org-billed model access instead of a personal token, and import shared skills from a central repo pinned by SHA.
