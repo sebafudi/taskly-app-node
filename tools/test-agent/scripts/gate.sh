@@ -36,11 +36,22 @@ else
 fi
 echo "Verifying agent changes: $(git rev-parse --short HEAD) on top of $(git rev-parse --short "$HEAD_SHA")"
 
-# 2. Install the application's dependencies from the PR's lockfiles (the agent cannot change them).
+# 2. Refuse agent changes outside the test paths before anything from them runs here: npm ci executes
+#    package.json lifecycle scripts on this runner, outside the network-less sandbox.
+node --input-type=module -e '
+  const { isWritable } = await import(process.argv[1]);
+  const outside = process.argv[2].split("\n").filter(Boolean).filter((path) => !isWritable(path));
+  if (outside.length) {
+    console.error(`::error::Agent changed files outside the test paths: ${outside.join(", ")}`);
+    process.exit(1);
+  }
+' "$TRUSTED_DIR/src/lib/policy.mjs" "$(git diff --name-only --no-renames "$HEAD_SHA" HEAD)"
+
+# 3. Install the application's dependencies from the PR's lockfiles, now known to be untouched.
 npm ci --prefix backend --no-audit --no-fund --loglevel=error
 npm ci --prefix frontend --no-audit --no-fund --loglevel=error
 
-# 3. Run the trusted verifier with the agent's tests inside a network-less container.
+# 4. Run the trusted verifier with the agent's tests inside a network-less container.
 status=0
 docker run --rm --network=none \
   -v "$GATE_DIR:/workspace" -v "$TRUSTED_DIR:/opt/test-agent:ro" -v "$OUT_DIR:/out" \

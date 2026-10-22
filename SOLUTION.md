@@ -134,7 +134,7 @@ flowchart LR
 
 | Risk | Mitigation |
 | --- | --- |
-| Agent edits application code, configs or workflows | `allowed-files` on the push safe output; the same policy in `validate_my_changes` and the gate; gh-aw protected files |
+| Agent edits application code, configs or workflows | `allowed-files` on the push safe output; the same policy in `validate_my_changes` and the gate, which checks it before installing anything so an edited `package.json` never runs; gh-aw protected files |
 | Agent-written tests exfiltrate data | Tests only ever execute inside a Node container with `--network=none` (MCP server and gate) |
 | PR weakens the agent's own checks | The MCP server and the gate run `tools/test-agent` from the base branch; gh-aw restores `.github/` (agent, skills) from the base branch |
 | Prompt injection via PR content | Agent rules treat PR text and code as data; gh-aw AI threat scan; fail-closed detection |
