@@ -4,36 +4,40 @@ A custom agent with reusable skills that writes and updates unit tests for the T
 
 ## At a glance
 
+The model proposes, deterministic code decides. One pull request passes through three trust zones:
+
+```mermaid
+flowchart TD
+    PR([Pull request opened or updated]) --> ROLES
+
+    subgraph PREP["1 · Prepare: no model yet"]
+        ROLES[Role check and daily AI credit budget] --> TRUST[Extract tools/test-agent<br/>from the base branch]
+        TRUST --> ANALYZE[npm ci + deterministic analysis<br/>of the changed files]
+    end
+
+    ANALYZE -->|nothing testable| NOOP([noop: run ends,<br/>model never starts])
+    ANALYZE -->|files need tests| AGENT
+
+    subgraph SANDBOX["2 · Agent sandbox: read-only token, egress allowlist"]
+        AGENT[Copilot CLI · Claude Sonnet 5.5<br/>custom agent + 5 skills] <-->|8 tools| MCP[[MCP server taskly-test-agent<br/>Node container, --network=none]]
+        AGENT --> REQ[Test commit +<br/>requested push and comment]
+    end
+
+    REQ -->|git bundle| GATE
+
+    subgraph JUDGES["3 · Trusted judges: fail closed"]
+        GATE{Verification gate<br/>+ AI threat scan}
+        GATE -->|pass| SAFE[safe_outputs: push allowed<br/>test files + agent comment]
+        GATE -->|fail| STOP([Nothing is pushed])
+        GATE -.->|results artifact| REPORT[Report workflow on the default branch:<br/>comment with the measured results]
+    end
 ```
-pull request opened / updated
-        │
-        ▼
-┌────────────────────────── agent job (gh-aw, read-only token, firewalled) ──────────────────────────┐
-│ 1. extract tools/test-agent from the BASE branch (trusted copy)                                     │
-│ 2. npm ci + deterministic pre-analysis  ──► nothing testable? write noop, no model call            │
-│ 3. Copilot CLI + custom agent + 5 skills                                                            │
-│      └─ MCP server "taskly-test-agent" in a Node container with --network=none                     │
-│         analyze_pr_changes · get_file_diff · find_related_tests · run_tests · get_coverage ·       │
-│         check_tests_against_base · check_types_and_format · validate_my_changes                     │
-│ 4. agent commits test files, requests push + comment (safe outputs)                                 │
-└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
-        │ git bundle + requested outputs
-        ▼
-┌──────────────── detection job (fail closed) ────────────────┐
-│ verification gate: fresh checkout + agent bundle,            │
-│ trusted verifier in a --network=none container:              │
-│ policy guard · full suites · 3x flake runs ·                 │
-│ typecheck + Prettier · base-branch sensitivity ·             │
-│ changed-line coverage                                        │
-│ then gh-aw's AI threat scan of the patch                     │
-└──────────────────────────────────────────────────────────────┘
-        │ only if both pass
-        ▼
-safe_outputs job: push test commit (allowed-files only) + agent comment
-        │
-        ▼
-"Unit test agent report" workflow (default branch, no PR code): posts the gate's measured results
-```
+
+| Zone | Runs | Trusts |
+| --- | --- | --- |
+| 1 · Prepare | Workflow steps and the base branch's `tools/test-agent` | Nothing from the PR except the code it analyzes |
+| 2 · Agent sandbox | The model, its skills and MCP tools | Nothing: every output is only a request |
+| 3 · Trusted judges | Gate, gh-aw threat scan, safe outputs, report workflow | Only what it re-measures itself |
 
 ## Where things live
 
@@ -54,6 +58,60 @@ safe_outputs job: push test commit (allowed-files only) + agent comment
 | `.github/workflows/ci.yml` | Plain CI: typecheck, tests with coverage, tooling tests |
 | `.claude/`, `.mcp.json` | The same agent, skills and MCP server wired for local use in Claude Code |
 
+```mermaid
+flowchart LR
+    subgraph KNOW["Knowledge · Markdown"]
+        AG[unit-test-agent.agent.md]
+        SK[5 skills]
+    end
+    subgraph TOOLS["Tools · Node, no model"]
+        LIB[(src/lib<br/>policy · git · mapping · vitest<br/>analyze · guard · baseline · verify · report)]
+        SRV[server.mjs<br/>MCP tools]
+        CLI[cli.mjs<br/>analyze · verify · report]
+        SRV --> LIB
+        CLI --> LIB
+    end
+    subgraph ORCH["Orchestration · GitHub"]
+        WF[unit-test-agent.md<br/>gh-aw workflow]
+        GATE[gate.sh]
+        REP[unit-test-agent-report.yml]
+        CI[ci.yml]
+    end
+    WF --> AG & SK & SRV
+    GATE --> CLI
+    REP --> CLI
+    CI -->|npm test| LIB
+```
+
+The agent, the gate and the report all call the same library, so the agent sees exactly the numbers CI checks later.
+
+### Inside one agent run
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant W as Workflow
+    participant A as Agent
+    participant T as MCP tools
+    participant G as Gate
+    W->>A: Task, analysis, PR description as untrusted data
+    A->>T: analyze_pr_changes, get_file_diff
+    T-->>A: Action per file, uncovered changed lines
+    Note over A: pr-test-triage: write down the intended behaviour
+    loop Each target file, highest risk first
+        A->>A: Write or extend tests (backend or frontend skill)
+        A->>T: run_tests
+        T-->>A: Pass, or failures with reasons
+        A->>T: check_tests_against_base
+        T-->>A: Which tests fail on the old code
+    end
+    A->>T: check_types_and_format, validate_my_changes
+    T-->>A: Same verdict the gate will give
+    A->>W: Commit, push request, report comment
+    W->>G: Agent bundle on a fresh checkout
+    G-->>W: ok, or blocked with reasons
+```
+
 ## Main technical decisions
 
 **GitHub Agentic Workflows (gh-aw) with the Copilot engine.** The task requires everything to run on GitHub, and gh-aw provides the security architecture an agent on pull requests needs: the agent job has a read-only token, egress goes through a domain allowlist, and every write (push, comment) is a typed "safe output" applied by a separate job after a threat scan. The workflow is Markdown with frontmatter, compiled to a normal Actions file. The agent and skill files use the standard formats, so the same definitions also run in Claude Code locally (`.claude/` links) and could run on gh-aw's Claude engine by changing `engine.id`.
@@ -65,7 +123,32 @@ safe_outputs job: push test commit (allowed-files only) + agent comment
 - It runs in gh-aw's detection job with `continue-on-error: false`, so a failure blocks the push and the comment.
 - The PR comment with numbers comes from the gate's JSON, rendered by trusted code on the default branch, not from the model.
 
+```mermaid
+flowchart LR
+    IN[PR head + agent bundle<br/>fresh checkout] --> P{Policy guard}
+    P -->|violation| X([Blocked: no push, no comment])
+    P -->|clean| S{Full suites pass?}
+    S -->|no| X
+    S -->|yes| F{Same result<br/>in 3 runs?}
+    F -->|no| X
+    F -->|yes| C{tsc and Prettier<br/>clean?}
+    C -->|no| X
+    C -->|yes| OK([Push allowed])
+    OK -.-> R[Also reported: tests that fail on base,<br/>changed-line coverage]
+```
+
 **"Does this test detect the change?"** Coverage alone rewards tests that execute code without checking it. For each agent-written test file, the gate also runs it against the base branch's code in a temporary worktree. Tests that pass on the PR but fail on the base demonstrably exercise the new behaviour. This is reported per project, and the skills tell the agent to strengthen assertions when tests for changed behaviour do not detect it.
+
+```mermaid
+flowchart LR
+    T[New test] --> H[Run on the PR code]
+    T --> B[Run on the base code<br/>in a git worktree]
+    H --> M{Result}
+    B --> M
+    M -->|pass on PR, fail on base| D([Detects the change])
+    M -->|pass on both| N([Safety net only])
+    M -->|fail on PR| E([Broken test or app bug:<br/>gate blocks, agent reports])
+```
 
 **Security layers**
 
@@ -109,6 +192,26 @@ npm test --prefix tools/test-agent   # the tooling's own tests
 ## Example runs
 
 Three demo pull requests, each run on GitHub with the real workflow. Credit figures are gh-aw's AI Credits for the agent run (1 AIC = $0.01).
+
+```mermaid
+flowchart TB
+    subgraph P1["#1 · tests only"]
+        direction LR
+        A1[Analysis: nothing testable] --> B1([noop, model never starts<br/>0 AIC])
+    end
+    subgraph P5["#5 · new feature, then a behaviour change"]
+        direction LR
+        A5[Run 1: 6 files need tests] --> B5([14 tests pushed<br/>11 fail on base · 42 AIC])
+        B5 --> C5[Follow-up commit breaks<br/>5 earlier assertions]
+        C5 --> D5([Run 2: assertions updated,<br/>edge cases added · 25.6 AIC])
+    end
+    subgraph P8["#8 · deliberate bug"]
+        direction LR
+        A8[Description: label depends<br/>only on the calendar date] --> B8[Tests at 00:00:01, 10:00, 23:59:59]
+        B8 --> C8([Bug reported with a fix,<br/>nothing pushed · 20.8 AIC])
+    end
+    P1 ~~~ P5 ~~~ P8
+```
 
 ### 1. New feature, tests created: [#5](https://github.com/sebafudi/taskly-app-node/pull/5), [first run](https://github.com/sebafudi/taskly-app-node/actions/runs/39614786528)
 
