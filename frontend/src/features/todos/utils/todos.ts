@@ -62,6 +62,19 @@ export function isOverdue(todo: Todo): boolean {
   return !todo.completed && !!todo.due_date && todo.due_date < localDate
 }
 
+// Relative wording for an active task's due date: "due today", "due tomorrow",
+// "due in 3 days", "1 day overdue", "4 days overdue".
+export function dueLabel(todo: Todo): string | null {
+  if (!todo.due_date || todo.completed) return null
+  const due = new Date(`${todo.due_date}T00:00:00`).getTime()
+  const days = Math.floor((due - Date.now()) / 86_400_000)
+  if (days === 0) return 'due today'
+  if (days === 1) return 'due tomorrow'
+  if (days > 1) return `due in ${days} days`
+  const late = -days
+  return `${late} ${late === 1 ? 'day' : 'days'} overdue`
+}
+
 export function formatDate(date: string): string {
   return new Intl.DateTimeFormat('en-GB', {
     day: 'numeric',

@@ -1,6 +1,6 @@
 import { CalendarDays, Pencil, Trash2 } from 'lucide-react'
 import type { Todo } from '../types'
-import { formatDate, isOverdue, priorityLabels } from '../utils/todos'
+import { dueLabel, formatDate, isOverdue, priorityLabels } from '../utils/todos'
 import {
   Badge,
   Card,
@@ -49,7 +49,7 @@ export function TodoItem({
                   <span className="row compact">
                     <CalendarDays size={14} aria-hidden="true" />
                     {formatDate(todo.due_date)}
-                    {isOverdue(todo) && ' · overdue'}
+                    {dueLabel(todo) && ` · ${dueLabel(todo)}`}
                   </span>
                 </Badge>
               )}

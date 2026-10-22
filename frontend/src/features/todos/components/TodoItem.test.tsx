@@ -88,7 +88,7 @@ it('completes an active task and forwards delete requests', async () => {
 
 it('marks an open task past its due date as overdue', () => {
   vi.useFakeTimers()
-  vi.setSystemTime(new Date('2026-10-20T10:00:00'))
+  vi.setSystemTime(new Date('2026-10-20T00:00:00'))
   render(
     <TodoItem
       todo={{ ...todoFixture, due_date: '2026-10-19' }}
@@ -98,12 +98,12 @@ it('marks an open task past its due date as overdue', () => {
       onDelete={vi.fn()}
     />,
   )
-  expect(screen.getByText('19 Oct 2026 · overdue')).toBeVisible()
+  expect(screen.getByText('19 Oct 2026 · 1 day overdue')).toBeVisible()
 })
 
 it('shows a future due date without the overdue label', () => {
   vi.useFakeTimers()
-  vi.setSystemTime(new Date('2026-10-20T10:00:00'))
+  vi.setSystemTime(new Date('2026-10-20T00:00:00'))
   render(
     <TodoItem
       todo={{ ...todoFixture, due_date: '2026-10-25' }}
@@ -113,7 +113,7 @@ it('shows a future due date without the overdue label', () => {
       onDelete={vi.fn()}
     />,
   )
-  expect(screen.getByText('25 Oct 2026')).toBeVisible()
+  expect(screen.getByText('25 Oct 2026 · due in 5 days')).toBeVisible()
   expect(screen.queryByText(/overdue/)).not.toBeInTheDocument()
 })
 
